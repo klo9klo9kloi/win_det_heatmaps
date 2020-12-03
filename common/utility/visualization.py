@@ -92,7 +92,8 @@ def vis_eval_result(img, window, plotLine=False, saveFilename=None):
 
         if plotLine:
             thickness = 3
-            color = (50, 250, 50)
+            # color = (50, 250, 50)
+            color = (50, 50, 250)
             cv2.line(cv_img_patch_show, float2int(lt[:2]), float2int(lb[:2]), color, thickness)
             cv2.line(cv_img_patch_show, float2int(lb[:2]), float2int(rb[:2]), color, thickness)
             cv2.line(cv_img_patch_show, float2int(rb[:2]), float2int(rt[:2]), color, thickness)

@@ -175,6 +175,12 @@ class HeatmapParser():
         '''
         coords_in_patch_with_score_id = get_coords_from_heatmaps_with_NMS(det[:4])
 
+        for c in coords_in_patch_with_score_id:
+            if len(c) == 0:
+                print("couldn't detect all corners")
+                return {'tag_k': [], 'loc_k': [], 'val_k': []}
+
+
         val_k = [c_pts[:, 2, np.newaxis] for c_pts in coords_in_patch_with_score_id]
         ind_k = [(c_pts[:, 0:2] + 0.5).astype(int) for c_pts in coords_in_patch_with_score_id]
 
@@ -240,6 +246,8 @@ class HeatmapParser():
 
     def parse(self, det, tag, idx, ratio, rectify=False):
         re = self.calc(det, tag, idx)
+        if not re['tag_k']:
+            return []
         ans = self.match(**re)
         if rectify:
             ans = self.rectify(ans)

@@ -135,10 +135,6 @@ def update_config_from_args(config, args):
 
 from common.utility.augment import get_default_augment_config
 
-# 1. parsing arguments
-s_args = parse_args()
-s_config_file = s_args.cfg
-
 # 2. parsing pytorch config
 s_config = edict()
 s_config.pytorch = get_default_config_pytorch()

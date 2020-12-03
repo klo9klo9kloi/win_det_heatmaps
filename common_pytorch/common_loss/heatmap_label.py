@@ -74,7 +74,6 @@ def get_coords_from_heatmaps_with_NMS(heatmap, sigma=2, param_thre1=0.1):
 
         all_peaks.append(np.array(peaks_with_score_and_id))
         peak_counter += len(peaks)
-
     return all_peaks
 
 def generate_gaussian_heatmap_label(feat_stride, patch_width, patch_height, window, sigma):

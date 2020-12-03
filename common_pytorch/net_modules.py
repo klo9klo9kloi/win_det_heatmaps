@@ -187,7 +187,6 @@ def inferNet(infer_data_loader, network, merge_hm_flip_func, merge_tag_flip_func
 
     heatmaps = torch.cat(heatmaps_list)
     tagmaps = torch.cat(tagmaps_list)
-
     print("in infer")
     heatmaps = nn.UpsamplingBilinear2d((patch_height, patch_width)).cuda()(heatmaps)
     tagmaps = nn.UpsamplingBilinear2d((patch_height, patch_width)).cuda()(tagmaps)
@@ -217,3 +216,79 @@ def inferNet(infer_data_loader, network, merge_hm_flip_func, merge_tag_flip_func
 
     # 2. Infer or Evaluate
     facade.plot(windows_list_with_score, imdb_list, final_output_path)
+
+    # 2.5 save coords
+    save_window_coords(windows_list_with_score, imdb_list, final_output_path)
+
+def save_window_coords(window_list, imdb_list, save_path, point_to_pixel=0.003):
+    for s_idx in range(len(window_list)):
+        im = imdb_list[s_idx]['image']
+
+        coordFilename = "coord_" + os.path.basename(im).split('.')[0] + ".txt"
+        coordFilename = os.path.join(save_path, coordFilename)
+
+        with open(coordFilename, 'w') as f:
+            winPred = window_list[s_idx]
+            f.write(str(len(winPred)) + "\n")
+            for i in range(len(winPred)):
+                f.write(str(i) + "\n")
+                position = winPred[i]['position'] # 4x2 array
+                for j in range(4):
+                    f.write(str(position[j][0]*point_to_pixel) + "," + str(position[j][1]*point_to_pixel) + "\n")
+
+
+def apiNet(infer_data_loader, network, merge_hm_flip_func, merge_tag_flip_func, flip_pairs,
+             patch_width, patch_height, loss_config, test_config, flip_test=True):
+
+    print('in valid')
+    network.eval()
+
+    heatmaps_list = []
+    tagmaps_list = []
+    with torch.no_grad():
+        for idx, _data in enumerate(infer_data_loader):
+            batch_data = _data.cuda()
+
+            heatmaps, tagmaps = network(batch_data)
+
+            if flip_test:
+                batch_data_flip = flip(batch_data, dims=3)
+                heatmaps_flip, tagmaps_flip = network(batch_data_flip)
+
+            if flip_test:
+                heatmaps = merge_hm_flip_func(heatmaps, heatmaps_flip, flip_pairs)
+                tagmaps = merge_tag_flip_func(tagmaps, tagmaps_flip, flip_pairs)
+
+            heatmaps_list.append(heatmaps)
+            tagmaps_list.append(tagmaps)
+
+    heatmaps = torch.cat(heatmaps_list)
+    tagmaps = torch.cat(tagmaps_list)
+    print("in infer")
+    heatmaps = nn.UpsamplingBilinear2d((patch_height, patch_width)).cuda()(heatmaps)
+    tagmaps = nn.UpsamplingBilinear2d((patch_height, patch_width)).cuda()(tagmaps)
+    heatmaps = heatmaps.cpu().numpy().astype(float)
+    tagmaps = tagmaps.cpu().numpy().astype(float)
+
+    imdb_list = infer_data_loader.dataset.db
+
+    num_samples = heatmaps.shape[0]
+    assert num_samples == tagmaps.shape[0]
+    assert num_samples == len(imdb_list)
+
+    windows_list_with_score = list()
+    ############################ Group corners on TAG ##############################
+    # 1. Group Corners
+    parser = HeatmapParser(loss_config, test_config.useCenter, test_config.centerT, imdb_list)
+    for n_s in range(num_samples):
+        try:
+            group_corners_wz_score = \
+                group_corners_on_tags(n_s, parser, heatmaps[n_s], tagmaps[n_s], patch_width, patch_height,
+                                      imdb_list[n_s]['im_width'], imdb_list[n_s]['im_height'],
+                                      rectify = test_config.rectify, winScoreThres = test_config.windowT)
+            windows_list_with_score.append(group_corners_wz_score)
+        except Exception as e:
+            assert 0, (n_s, e, os.path.basename(imdb_list[n_s]['image']))
+            # print(e, '  ', os.path.basename(imdb_list[n_s]['image']))
+
+    return windows_list_with_score
