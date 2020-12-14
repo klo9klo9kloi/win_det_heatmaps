@@ -4,6 +4,8 @@ nohup.out
 .idea/
 debug/
 output
+data/
+models/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
